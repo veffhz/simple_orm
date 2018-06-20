@@ -13,15 +13,14 @@ class Base(HelperMixin, object):
 
     def __init__(self, connection, **kwargs):
         self.conn = connection
+        self.kwargs = kwargs
         self.fields = self.get_fields()
-        self._create_table(self.table())
-
-        if len(kwargs) > 1:
-            self._insert(kwargs)
+        self._create_table_if_not_exist(self.table)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
 
+    @property
     def table(self):
         return self.__class__.__tablename__
 
@@ -30,7 +29,7 @@ class Base(HelperMixin, object):
         return {key: value for (key, value) in old_dict.items()
                 if not key.startswith('__') or None}
 
-    def _create_table(self, table):
+    def _create_table_if_not_exist(self, table):
         params = []
 
         for name, (f_type, null_or_key) in self.fields.items():
@@ -58,7 +57,7 @@ class Base(HelperMixin, object):
 
     def select_all(self):
         field_names = self.fields.keys()
-        command = SELECT_ALL % (self.join(field_names), self.table())
+        command = SELECT_ALL % (self.join(field_names), self.table)
         c = self.conn.cursor()
         c.execute(command)
         return c.fetchall()
@@ -66,17 +65,21 @@ class Base(HelperMixin, object):
     def select_by(self, **args):
         field_names = self.fields.keys()
         params = ["%s='%s'" % (key, value) if isinstance(value, str)
-             else "%s=%s" % (key, value) for (key, value) in args.items()]
-        command = SELECT % (self.join(field_names), self.table(), self.join(params, ' AND '))
+                  else "%s=%s" % (key, value) for (key, value) in args.items()]
+        command = SELECT % (self.join(field_names), self.table, self.join(params, ' AND '))
         c = self.conn.cursor()
         c.execute(command)
         return c.fetchall()
 
     def _insert(self, kwargs):
         values = ["'%s'" % str(x) if isinstance(x, str) else str(x) for x in kwargs.values()]
-        command = INSERT_COLUMNS % (self.table(),
+        command = INSERT_COLUMNS % (self.table,
                                     self.join(kwargs.keys()),
                                     self.join(values))
         c = self.conn.cursor()
         c.execute(command)
         self.conn.commit()
+
+    def save(self):
+        if len(self.kwargs) > 1:
+            self._insert(self.kwargs)

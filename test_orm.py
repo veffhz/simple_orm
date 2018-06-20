@@ -12,6 +12,7 @@ class User(Base):
 
 if __name__ == "__main__":
     user = User(connection=conn, id=1, username='doe')
+    user.save()
     all = user.select_all()
     print(all)
     data = user.select_by(id=1)
