@@ -32,7 +32,7 @@ class Helper:
                 if not key.startswith('__') or None}
 
 
-class Base(object):
+class Base:
     __tablename__ = ''
 
     def __init__(self, connection, **kwargs):
@@ -72,14 +72,16 @@ class Base(object):
     def select_all(self):
         field_names = self.fields.keys()
         command = SELECT_ALL % (Helper.join(field_names), self.table)
-        return self.execute_and_fetch(command)
+        rows = self.execute_and_fetch(command)
+        return [self.mapped_row_on_object(row, field_names) for row in rows]
 
     def select_by(self, **args):
         field_names = self.fields.keys()
         params = ["%s='%s'" % (key, value) if isinstance(value, str)
                   else "%s=%s" % (key, value) for (key, value) in args.items()]
         command = SELECT % (Helper.join(field_names), self.table, Helper.join(params, ' AND '))
-        return self.execute_and_fetch(command)
+        rows = self.execute_and_fetch(command)
+        return [self.mapped_row_on_object(row, field_names) for row in rows]
 
     def _insert(self, fields):
         values = ["'%s'" % str(x[1]) if isinstance(x[1], str) else str(x[1]) for x in fields.values()]
@@ -90,4 +92,14 @@ class Base(object):
 
     def save(self):
         self._insert(self.fields)
+
+    def mapped_row_on_object(self, row, field_names):
+        count = 0
+        arr = {key: None for key in field_names}
+        obj = self.__class__(self.conn, **arr)
+        for name in field_names:
+            setattr(obj, name, row[count])
+            count = count + 1
+        return obj
+
 

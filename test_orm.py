@@ -18,5 +18,5 @@ if __name__ == "__main__":
     data = user.select_by(id=1)
     print(data)
     data = user.select_by(id=1, username='doe')
-    print(data)
+    print(data[0].id)
     user.drop_table('posts')
