@@ -3,6 +3,7 @@ from exceptions import SqlRequiredException
 from templates import CREATE_TABLE, DROP_TABLE
 from templates import SELECT_ALL, SELECT
 from templates import INSERT_COLUMNS
+from templates import UPDATE, UPDATE_ALL
 
 
 class Helper:
@@ -82,6 +83,18 @@ class Base:
         command = SELECT % (Helper.join(field_names), self.table, Helper.join(params, ' AND '))
         rows = self.execute_and_fetch(command)
         return [self.mapped_row_on_object(row, field_names) for row in rows]
+
+    def update_all(self, **args):
+        params = ["%s='%s'" % (key, value) if isinstance(value, str)
+                  else "%s=%s" % (key, value) for (key, value) in args.items()]
+        command = UPDATE_ALL % (self.table, Helper.join(params))
+        self.execute_command(command)
+
+    def update_by_id(self, id, **args):
+        params = ["%s='%s'" % (key, value) if isinstance(value, str)
+                  else "%s=%s" % (key, value) for (key, value) in args.items()]
+        command = UPDATE % (self.table, Helper.join(params), 'id={}'.format(id))
+        self.execute_command(command)
 
     def _insert(self, fields):
         values = ["'%s'" % str(x[1]) if isinstance(x[1], str) else str(x[1]) for x in fields.values()]
