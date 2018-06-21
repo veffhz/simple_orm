@@ -15,6 +15,8 @@ if __name__ == "__main__":
     user.save()
     all = user.select_all()
     print(all)
+    data = user.select_by(id=1)
+    print(data)
     data = user.select_by(id=1, username='doe')
     print(data)
     user.drop_table('posts')
