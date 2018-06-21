@@ -13,8 +13,7 @@ class Base(HelperMixin, object):
 
     def __init__(self, connection, **kwargs):
         self.conn = connection
-        self.kwargs = kwargs
-        self.fields = self.get_fields()
+        self.fields = self.get_fields(kwargs)
         self._create_table_if_not_exist(self.table)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -24,26 +23,30 @@ class Base(HelperMixin, object):
     def table(self):
         return self.__class__.__tablename__
 
-    def get_fields(self):
-        old_dict = self.__class__.__dict__
-        return {key: value for (key, value) in old_dict.items()
+    def get_fields(self, kwargs):
+        full_dict = self.__class__.__dict__
+        return {key: (value, kwargs[key]) for (key, value) in full_dict.items()
                 if not key.startswith('__') or None}
 
     def _create_table_if_not_exist(self, table):
         params = []
 
-        for name, (f_type, null_or_key) in self.fields.items():
-            if null_or_key == 'required':
-                field = "%s %s %s" % (name, f_type, 'NOT NULL')
-            elif null_or_key == 'pk':
-                field = "%s %s %s" % (name, f_type, 'PRIMARY KEY')
-            else:
-                field = "%s %s" % (name, f_type)
+        for name, param in self.fields.items():
+            field = self.parse_column_param(name, param)
             params.append(field)
 
         c = self.conn.cursor()
         c.execute(CREATE_TABLE % (table, self.join(params)))
         self.conn.commit()
+
+    def parse_column_param(self, name, param):
+        column_type = self.join(param[0])
+        if len(param) == 2 and 'required' in param:
+            return "%s %s %s" % (name, column_type, 'NOT NULL')
+        elif len(param) == 2 and 'pk' in param:
+            return "%s %s %s" % (name, column_type, 'PRIMARY KEY')
+        else:
+            return "%s %s" % (name, column_type)
 
     def create_table(self, table):
         c = self.conn.cursor()
@@ -71,15 +74,14 @@ class Base(HelperMixin, object):
         c.execute(command)
         return c.fetchall()
 
-    def _insert(self, kwargs):
-        values = ["'%s'" % str(x) if isinstance(x, str) else str(x) for x in kwargs.values()]
+    def _insert(self, fields):
+        values = ["'%s'" % str(x[1]) if isinstance(x[1], str) else str(x[1]) for x in fields.values()]
         command = INSERT_COLUMNS % (self.table,
-                                    self.join(kwargs.keys()),
+                                    self.join(fields.keys()),
                                     self.join(values))
         c = self.conn.cursor()
         c.execute(command)
         self.conn.commit()
 
     def save(self):
-        if len(self.kwargs) > 1:
-            self._insert(self.kwargs)
+        self._insert(self.fields)
