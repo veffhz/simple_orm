@@ -13,7 +13,7 @@ class User(Base):
 class Account(Base):
     __tablename__ = 'accounts'
     id = ('int', 'pk')
-    user_id = ('int', 'required')
+    user_id = ('int', 'required', ('fk', 'id', 'users'))
     no = ('int', 'required')
 
 
@@ -70,8 +70,8 @@ def run_test():
 
     account_test(account)
 
-    user.drop_table('posts')
-    user.drop_table('accounts')
+    user.drop_table('users')
+    account.drop_table('accounts')
 
 
 if __name__ == "__main__":
