@@ -5,6 +5,7 @@ from templates import CREATE_TABLE, DROP_TABLE
 from templates import SELECT_ALL, SELECT
 from templates import INSERT_COLUMNS
 from templates import UPDATE, UPDATE_ALL
+from templates import DELETE, DELETE_ALL
 from templates import JOIN
 
 import helpers
@@ -49,7 +50,7 @@ class Base:
             self.conn.commit()
             return result
 
-    def _create_table_if_not_exist(self, table):
+    def __create_table_if_not_exist(self, table):
         items = self.fields.items()
         params = helpers.iterate_fields(helpers.parse_column_param, items)
         self.foreign_keys = [key for key in helpers.iterate_fields(helpers.parse_foreign_keys, items) if key]
@@ -107,8 +108,18 @@ class Base:
                                     helpers.join_str(values))
         self.execute_command(command)
 
+    def delete_all(self):
+        self.execute_command(DELETE_ALL % self.table)
+
+    def delete_by(self, condition='AND', **args):
+        params = ["%s.%s='%s'" % (self.table, key, value) if isinstance(value, str)
+                  else "%s.%s=%s" % (self.table, key, value) for (key, value) in args.items()]
+
+        command = DELETE % (self.table, helpers.join_str(params, ' %s ' % condition))
+        self.execute_command(command)
+
     def save(self):
-        self._create_table_if_not_exist(self.table)
+        self.__create_table_if_not_exist(self.table)
         self.__insert(self.fields)
 
     def mapped_row_on_object(self, row, field_names):

@@ -61,6 +61,9 @@ def account_test(account):
     all_accounts = account.select_all()
     print("accounts -", [one.no for one in all_accounts])
 
+    account.delete_by(id=4)
+    account.delete_all()
+
 
 def run_test():
     user = User(connection=conn, id=1, username='doe')
