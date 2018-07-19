@@ -33,7 +33,10 @@ class Base:
             c.execute(command)
         except OperationalError as error:
             raise SqlException(error)
-        self.conn.commit()
+        else:
+            result = c.fetchall()
+            self.conn.commit()
+            return result
 
     def execute_and_fetch(self, command):
         c = self.conn.cursor()
@@ -41,7 +44,10 @@ class Base:
             c.execute(command)
         except OperationalError as error:
             raise SqlException(error)
-        return c.fetchall(), c.description
+        else:
+            result = c.fetchall(), next(zip(*c.description))
+            self.conn.commit()
+            return result
 
     def _create_table_if_not_exist(self, table):
         items = self.fields.items()
@@ -62,33 +68,24 @@ class Base:
         self.execute_command(DROP_TABLE % table)
 
     def select_all(self):
-        field_names = self.fields.keys()
-
         join_tables = []
         if len(self.foreign_keys) > 0:
             join_tables = [JOIN % (table, table, field, self.table, name)
                            for name, table, field in self.foreign_keys]
-            field_names.extend('%s.*' % table for name, table, field in self.foreign_keys)
 
         command = SELECT_ALL % (self.table, helpers.join_str(join_tables))
         rows = self.execute_and_fetch(command)
-        return [self.mapped_row_on_object(row, field_names) for row in rows]
+        return [self.mapped_row_on_object(row, rows[1]) for row in rows[0]]
 
-    def select_by(self, **args):
+    def select_by(self, condition='AND', **args):
         field_names = list(self.fields.keys())
         params = ["%s.%s='%s'" % (self.table, key, value) if isinstance(value, str)
                   else "%s.%s=%s" % (self.table, key, value) for (key, value) in args.items()]
 
-        join_tables = []
-        if len(self.foreign_keys) > 0:
-            join_tables = [JOIN % (table, table, field, self.table, name)
-                           for name, table, field in self.foreign_keys]
-            field_names.extend('%s.*' % table for name, table, field in self.foreign_keys)
-
         command = SELECT % ('%s.%s' % (self.table, helpers.join_str(field_names)), self.table,
-                            helpers.join_str(join_tables), helpers.join_str(params, ' AND '))
+                            '', helpers.join_str(params, ' %s ' % condition))
         rows = self.execute_and_fetch(command)
-        return [self.mapped_row_on_object(row, field_names) for row in rows]
+        return [self.mapped_row_on_object(row, rows[1]) for row in rows[0]]
 
     def update_all(self, **args):
         params = ["%s='%s'" % (key, value) if isinstance(value, str)

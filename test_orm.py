@@ -34,26 +34,32 @@ def user_test(user):
 
     user.update_all(username='xxx')
 
+    user2 = user.select_by(id=2, condition='OR', username='xxx')
+    print("user id 2 or name xxx -", user2[0].id, user2[1].id)
+
+    user.update_by_id(id=1, username='zzz')
+
     all_users = user.select_all()
     print("users -", [one.username for one in all_users])
 
 
 def account_test(account):
     all_accounts = account.select_all()
-    print("accounts -", [one.no for one in all_accounts])
+    print("accounts no -", [one.no for one in all_accounts])
+    print("accounts joined users -", [one.username for one in all_accounts])
 
     accounts = account.select_by(id=4)
     print("account id 4 no -", accounts[0].no)
 
     account.update_by_id(id=4, no=555)
 
-    all_users = account.select_all()
-    print("accounts -", [one.no for one in all_users])
+    all_accounts = account.select_all()
+    print("accounts -", [one.no for one in all_accounts])
 
     account.update_all(no=777)
 
-    all_users = account.select_all()
-    print("accounts -", [one.no for one in all_users])
+    all_accounts = account.select_all()
+    print("accounts -", [one.no for one in all_accounts])
 
 
 def run_test():
