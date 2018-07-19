@@ -1,7 +1,7 @@
 from exceptions import SqlRequiredException
 
 
-def join(to_join, sep=', '):
+def join_str(to_join, sep=', '):
     return sep.join(to_join)
 
 
@@ -15,11 +15,15 @@ def parse_column_param(name, param):
         return "%s %s" % (name, column_type)
 
 
+def template_foreign_keys(name, other_table, other_field):
+    return 'FOREIGN KEY(%s) REFERENCES %s(%s)' % (name, other_table, other_field)
+
+
 def parse_foreign_keys(name, param):
     if len(param) == 3 and 'fk' in param[2][0]:
         other_table = param[2][2]
         other_field = param[2][1]
-        return 'FOREIGN KEY(%s) REFERENCES %s(%s)' % (name, other_table, other_field)
+        return name, other_table, other_field
 
 
 def iterate_fields(func, items):

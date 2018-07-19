@@ -1,7 +1,11 @@
+from sqlite3 import OperationalError
+
+from exceptions import SqlException
 from templates import CREATE_TABLE, DROP_TABLE
 from templates import SELECT_ALL, SELECT
 from templates import INSERT_COLUMNS
 from templates import UPDATE, UPDATE_ALL
+from templates import JOIN
 
 import helpers
 
@@ -14,6 +18,7 @@ class Base:
         helpers.validate_fields(fields)
         self.conn = connection
         self.fields = fields
+        self.foreign_keys = []
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
@@ -24,63 +29,90 @@ class Base:
 
     def execute_command(self, command):
         c = self.conn.cursor()
-        c.execute(command)
+        try:
+            c.execute(command)
+        except OperationalError as error:
+            raise SqlException(error)
         self.conn.commit()
 
     def execute_and_fetch(self, command):
         c = self.conn.cursor()
-        c.execute(command)
-        return c.fetchall()
+        try:
+            c.execute(command)
+        except OperationalError as error:
+            raise SqlException(error)
+        return c.fetchall(), c.description
 
     def _create_table_if_not_exist(self, table):
         items = self.fields.items()
         params = helpers.iterate_fields(helpers.parse_column_param, items)
-        foreing_keys = [key for key in helpers.iterate_fields(helpers.parse_foreign_keys, items) if key]
-        params.extend(foreing_keys)
-        self.execute_command(CREATE_TABLE % (table, helpers.join(params)))
+        self.foreign_keys = [key for key in helpers.iterate_fields(helpers.parse_foreign_keys, items) if key]
+        foreign_keys_string = [helpers.template_foreign_keys(name, other_table, other_field)
+                               for name, other_table, other_field in self.foreign_keys]
+        params.extend(foreign_keys_string)
+        self.execute_command(CREATE_TABLE % (table, helpers.join_str(params)))
 
-    def create_table(self, table, colums):
-        self.execute_command(CREATE_TABLE % (table, colums))
+    def create_table(self, table, columns):
+        self.execute_command(CREATE_TABLE % (table, columns))
 
-    def drop_table(self, table):
+    def drop_table(self):
+        self.__drop_table(self.table)
+
+    def __drop_table(self, table):
         self.execute_command(DROP_TABLE % table)
 
     def select_all(self):
         field_names = self.fields.keys()
-        command = SELECT_ALL % (helpers.join(field_names), self.table)
+
+        join_tables = []
+        if len(self.foreign_keys) > 0:
+            join_tables = [JOIN % (table, table, field, self.table, name)
+                           for name, table, field in self.foreign_keys]
+            field_names.extend('%s.*' % table for name, table, field in self.foreign_keys)
+
+        command = SELECT_ALL % (self.table, helpers.join_str(join_tables))
         rows = self.execute_and_fetch(command)
         return [self.mapped_row_on_object(row, field_names) for row in rows]
 
     def select_by(self, **args):
-        field_names = self.fields.keys()
-        params = ["%s='%s'" % (key, value) if isinstance(value, str)
-                  else "%s=%s" % (key, value) for (key, value) in args.items()]
-        command = SELECT % (helpers.join(field_names), self.table, helpers.join(params, ' AND '))
+        field_names = list(self.fields.keys())
+        params = ["%s.%s='%s'" % (self.table, key, value) if isinstance(value, str)
+                  else "%s.%s=%s" % (self.table, key, value) for (key, value) in args.items()]
+
+        join_tables = []
+        if len(self.foreign_keys) > 0:
+            join_tables = [JOIN % (table, table, field, self.table, name)
+                           for name, table, field in self.foreign_keys]
+            field_names.extend('%s.*' % table for name, table, field in self.foreign_keys)
+
+        command = SELECT % ('%s.%s' % (self.table, helpers.join_str(field_names)), self.table,
+                            helpers.join_str(join_tables), helpers.join_str(params, ' AND '))
         rows = self.execute_and_fetch(command)
         return [self.mapped_row_on_object(row, field_names) for row in rows]
 
     def update_all(self, **args):
         params = ["%s='%s'" % (key, value) if isinstance(value, str)
                   else "%s=%s" % (key, value) for (key, value) in args.items()]
-        command = UPDATE_ALL % (self.table, helpers.join(params))
+        command = UPDATE_ALL % (self.table, helpers.join_str(params))
         self.execute_command(command)
 
     def update_by_id(self, id, **args):
         params = ["%s='%s'" % (key, value) if isinstance(value, str)
                   else "%s=%s" % (key, value) for (key, value) in args.items()]
-        command = UPDATE % (self.table, helpers.join(params), 'id={}'.format(id))
+        command = UPDATE % (self.table, helpers.join_str(params), 'id={}'.format(id))
         self.execute_command(command)
 
-    def _insert(self, fields):
-        values = ["'%s'" % str(x[1]) if isinstance(x[1], str) else str(x[1]) for x in fields.values()]
+    def __insert(self, fields):
+        values = ["'%s'" % str(value[1]) if isinstance(value[1], str)
+                  else str(value[1]) for value in fields.values()]
         command = INSERT_COLUMNS % (self.table,
-                                    helpers.join(fields.keys()),
-                                    helpers.join(values))
+                                    helpers.join_str(fields.keys()),
+                                    helpers.join_str(values))
         self.execute_command(command)
 
     def save(self):
         self._create_table_if_not_exist(self.table)
-        self._insert(self.fields)
+        self.__insert(self.fields)
 
     def mapped_row_on_object(self, row, field_names):
         count = 0

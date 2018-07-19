@@ -21,11 +21,11 @@ def user_test(user):
     all_users = user.select_all()
     print("users -", [one.username for one in all_users])
 
-    # user1 = user.select_by(id=1)
-    # print("user id 1 -", user1[0].username)
+    user1 = user.select_by(id=1)
+    print("user id 1 -", user1[0].username)
 
-    # user2 = user.select_by(id=2, username='joe')
-    # print("user id 2 and name joe -", user2[0].id)
+    user2 = user.select_by(id=2, username='joe')
+    print("user id 2 and name joe -", user2[0].id)
 
     user.update_by_id(id=1, username='yyy')
 
@@ -41,6 +41,9 @@ def user_test(user):
 def account_test(account):
     all_accounts = account.select_all()
     print("accounts -", [one.no for one in all_accounts])
+
+    accounts = account.select_by(id=4)
+    print("account id 4 no -", accounts[0].no)
 
     account.update_by_id(id=4, no=555)
 
@@ -70,8 +73,8 @@ def run_test():
 
     account_test(account)
 
-    user.drop_table('users')
-    account.drop_table('accounts')
+    user.drop_table()
+    account.drop_table()
 
 
 if __name__ == "__main__":
