@@ -19,7 +19,7 @@ class Base:
         helpers.validate_fields(fields)
         self.conn = connection
         self.fields = fields
-        self.foreign_keys = []
+        self.init_foreign_key()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
@@ -50,14 +50,13 @@ class Base:
             self.conn.commit()
             return result
 
-    def __create_table_if_not_exist(self, table):
+    def create_table_by_fields(self):
         items = self.fields.items()
         params = helpers.iterate_fields(helpers.parse_column_param, items)
-        self.foreign_keys = [key for key in helpers.iterate_fields(helpers.parse_foreign_keys, items) if key]
         foreign_keys_string = [helpers.template_foreign_keys(name, other_table, other_field)
                                for name, other_table, other_field in self.foreign_keys]
         params.extend(foreign_keys_string)
-        self.execute_command(CREATE_TABLE % (table, helpers.join_str(params)))
+        self.create_table(self.table, helpers.join_str(params))
 
     def create_table(self, table, columns):
         self.execute_command(CREATE_TABLE % (table, columns))
@@ -119,7 +118,6 @@ class Base:
         self.execute_command(command)
 
     def save(self):
-        self.__create_table_if_not_exist(self.table)
         self.__insert(self.fields)
 
     def mapped_row_on_object(self, row, field_names):
@@ -130,5 +128,9 @@ class Base:
             setattr(obj, name, row[count])
             count = count + 1
         return obj
+
+    def init_foreign_key(self):
+        items = self.fields.items()
+        self.foreign_keys = [key for key in helpers.iterate_fields(helpers.parse_foreign_keys, items) if key]
 
 

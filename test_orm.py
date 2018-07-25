@@ -67,6 +67,7 @@ def account_test(account):
 
 def run_test():
     user = User(connection=conn, id=1, username='doe')
+    user.create_table_by_fields()
     user.save()
 
     user = User(connection=conn, id=2, username='joe')
@@ -75,6 +76,7 @@ def run_test():
     user_test(user)
 
     account = Account(connection=conn, id=4, user_id=1, no=123)
+    account.create_table_by_fields()
     account.save()
 
     account = Account(connection=conn, id=5, user_id=2, no=456)
