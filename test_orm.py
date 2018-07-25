@@ -1,8 +1,6 @@
 from orm import Base
 import sqlite3
 
-conn = sqlite3.connect('example.db')
-
 
 class User(Base):
     __tablename__ = 'users'
@@ -19,7 +17,7 @@ class Account(Base):
 
 def user_test(user):
     all_users = user.select_all()
-    print("users -", [one.username for one in all_users])
+    print("users -", [user.username for user in all_users])
 
     user1 = user.select_by(id=1)
     print("user id 1 -", user1[0].username)
@@ -66,18 +64,20 @@ def account_test(account):
 
 
 def run_test():
-    user = User(connection=conn, id=1, username='doe')
+    user = User(id=1, username='doe')
+    user.create_table_by_fields()
     user.save()
 
-    user = User(connection=conn, id=2, username='joe')
+    user = User(id=2, username='joe')
     user.save()
 
     user_test(user)
 
-    account = Account(connection=conn, id=4, user_id=1, no=123)
+    account = Account(id=4, user_id=1, no=123)
+    account.create_table_by_fields()
     account.save()
 
-    account = Account(connection=conn, id=5, user_id=2, no=456)
+    account = Account(id=5, user_id=2, no=456)
     account.save()
 
     account_test(account)
@@ -86,5 +86,11 @@ def run_test():
     account.drop_table()
 
 
+def init_db_connection():
+    connection = sqlite3.connect('example.db')
+    Base.set_connection(connection)
+
+
 if __name__ == "__main__":
+    init_db_connection()
     run_test()
