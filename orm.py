@@ -13,41 +13,41 @@ import helpers
 
 class Base:
     __tablename__ = ''
+    connection = None
 
-    def __init__(self, connection, **kwargs):
+    def __init__(self, **kwargs):
         fields = helpers.get_fields(self.__class__.__dict__, kwargs)
         helpers.validate_fields(fields)
-        self.conn = connection
         self.fields = fields
-        self.init_foreign_key()
+        self.foreign_keys = self.init_foreign_keys()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.conn.close()
+        self.connection.close()
 
     @property
     def table(self):
         return self.__class__.__tablename__
 
     def execute_command(self, command):
-        c = self.conn.cursor()
+        c = self.connection.cursor()
         try:
             c.execute(command)
         except OperationalError as error:
             raise SqlException(error)
         else:
             result = c.fetchall()
-            self.conn.commit()
+            self.connection.commit()
             return result
 
     def execute_and_fetch(self, command):
-        c = self.conn.cursor()
+        c = self.connection.cursor()
         try:
             c.execute(command)
         except OperationalError as error:
             raise SqlException(error)
         else:
             result = c.fetchall(), next(zip(*c.description))
-            self.conn.commit()
+            self.connection.commit()
             return result
 
     def create_table_by_fields(self):
@@ -123,14 +123,16 @@ class Base:
     def mapped_row_on_object(self, row, field_names):
         count = 0
         arr = {key: None for key in field_names}
-        obj = self.__class__(self.conn, **arr)
+        obj = self.__class__(**arr)
         for name in field_names:
             setattr(obj, name, row[count])
             count = count + 1
         return obj
 
-    def init_foreign_key(self):
+    def init_foreign_keys(self):
         items = self.fields.items()
-        self.foreign_keys = [key for key in helpers.iterate_fields(helpers.parse_foreign_keys, items) if key]
+        return [key for key in helpers.iterate_fields(helpers.parse_foreign_keys, items) if key]
 
-
+    @classmethod
+    def set_connection(cls, connection):
+        cls.connection = connection
