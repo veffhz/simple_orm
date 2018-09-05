@@ -12,6 +12,20 @@ import helpers
 
 
 class Base:
+    """
+    Implementation of simple orm api for sqlite db.
+
+    Usage:
+        describe entity, which inherits this class
+
+        class Entity(Base):
+            __tablename__ = 'table'
+            id = ('int', 'pk')
+            fk_entity_id = ('int', 'required', ('fk', 'id', 'other_table'))
+            field = ('int', 'required')
+
+        and usage orm api.
+    """
     __tablename__ = ''
     connection = None
 
@@ -96,7 +110,7 @@ class Base:
     def update_by_id(self, id, **args):
         params = ["%s='%s'" % (key, value) if isinstance(value, str)
                   else "%s=%s" % (key, value) for (key, value) in args.items()]
-        command = UPDATE % (self.table, helpers.join_str(params), 'id={}'.format(id))
+        command = UPDATE % (self.table, helpers.join_str(params), 'id=%d' % id)
         self.execute_command(command)
 
     def __insert(self, fields):

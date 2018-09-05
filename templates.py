@@ -1,3 +1,7 @@
+"""
+The SQL query templates for base statements.
+"""
+
 CREATE_TABLE = 'CREATE TABLE IF NOT EXISTS %s (%s);'
 DROP_TABLE = 'DROP TABLE %s;'
 
