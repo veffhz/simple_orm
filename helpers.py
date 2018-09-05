@@ -7,14 +7,19 @@ def join_str(to_join, sep=', '):
 
 
 def parse_column_param(name, param):
+    if len(param) == 0:
+        logging.error('Empty param in parse_column_param!')
+        return None
     column_type = param[0]
-    if len(param) > 1 and 'required' in param[1]:
-        column_option = 'NOT NULL'
-    elif len(param) > 1 and 'pk' in param:
-        column_option = 'PRIMARY KEY'
-    else:
+    if len(param) == 1:
         return "%s %s" % (name, column_type)
-    return "%s %s %s" % (name, column_type, column_option)
+    elif len(param) > 1:
+        column_option = ''
+        if 'required' in param[1]:
+            column_option = 'NOT NULL'
+        elif 'pk' in param:
+            column_option = 'PRIMARY KEY'
+        return "%s %s %s" % (name, column_type, column_option)
 
 
 def template_foreign_keys(name, other_table, other_field):
