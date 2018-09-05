@@ -20,6 +20,7 @@ class Base:
 
         class Entity(Base):
             __tablename__ = 'table'
+
             id = ('int', 'pk')
             fk_entity_id = ('int', 'required', ('fk', 'id', 'other_table'))
             field = ('int', 'required')

@@ -21,6 +21,9 @@ class SqlRequiredException(SqlException):
 
 
 class SqlColumnException(SqlException):
+    """
+    Not found column exception
+    """
     def __init__(self, message=None):
         self.message = 'Sqlite exception: %s' % message
 
